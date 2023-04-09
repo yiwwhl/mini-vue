@@ -1,9 +1,13 @@
+import { merge } from "./shared/utils";
+
 let activeEffect;
 
 class ReactiveEffect {
 	fn;
+	scheduler;
 
-	constructor(_fn) {
+	constructor(_fn, options) {
+		merge(this, options);
 		this.fn = _fn;
 	}
 
@@ -35,12 +39,16 @@ export function trigger(target, key) {
 	let deps = keyMap.get(key);
 
 	for (const dep of deps) {
-		dep.run();
+		if (dep.scheduler) {
+			dep.scheduler();
+		} else {
+			dep.run();
+		}
 	}
 }
 
-export function effect(fn) {
-	const effect = new ReactiveEffect(fn);
+export function effect(fn, options?) {
+	const effect = new ReactiveEffect(fn, options);
 	effect.run();
 	return effect.run.bind(effect);
 }
