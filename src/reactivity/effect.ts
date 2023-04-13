@@ -5,6 +5,10 @@ let activeEffect;
 class ReactiveEffect {
 	fn;
 	scheduler;
+	active = true;
+	depsPool = [];
+	onStop: any;
+	onScheduler: any;
 
 	constructor(_fn, options) {
 		merge(this, options);
@@ -15,6 +19,22 @@ class ReactiveEffect {
 		activeEffect = this;
 		return this.fn();
 	}
+
+	stop() {
+		if (this.active) {
+			if (this.onStop) {
+				this.onStop();
+			}
+			cleanupEffect(this);
+			this.active = false;
+		}
+	}
+}
+
+function cleanupEffect(effect) {
+	effect.depsPool.forEach((deps: Set<any>) => {
+		deps.delete(effect);
+	});
 }
 
 const targetMap = new Map();
@@ -32,6 +52,8 @@ export function track(target, key) {
 	}
 
 	deps.add(activeEffect);
+
+	activeEffect?.depsPool.push(deps);
 }
 
 export function trigger(target, key) {
@@ -50,5 +72,11 @@ export function trigger(target, key) {
 export function effect(fn, options?) {
 	const effect = new ReactiveEffect(fn, options);
 	effect.run();
-	return effect.run.bind(effect);
+	const runner: any = effect.run.bind(effect);
+	runner.effect = effect;
+	return runner;
+}
+
+export function stop(runner) {
+	runner.effect.stop();
 }
