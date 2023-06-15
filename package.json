@@ -1,14 +1,13 @@
 {
 	"name": "mini-vue",
 	"version": "1.0.0",
-	"description": "",
+	"description": "the simplest implementation of vue3",
 	"main": "index.js",
 	"scripts": {
 		"test": "jest"
 	},
-	"keywords": [],
-	"author": "",
-	"license": "ISC",
+	"author": "yiwwhl <yiwwhl@qq.com>",
+	"license": "MIT",
 	"devDependencies": {
 		"@babel/core": "^7.21.4",
 		"@babel/preset-env": "^7.21.4",
