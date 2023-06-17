@@ -47,7 +47,7 @@ function cleanupEffect(effect) {
 
 const targetMap = new Map();
 
-function isTracking() {
+export function isTracking() {
 	return shouldTrack && activeEffect !== undefined;
 }
 
@@ -64,9 +64,11 @@ export function track(target, key) {
 		deps = new Set();
 		keyMap.set(key, deps);
 	}
+	trackEffects(deps);
+}
 
+export function trackEffects(deps) {
 	if (deps.has(activeEffect)) return;
-
 	deps.add(activeEffect);
 	activeEffect.depsPool.push(deps);
 }
@@ -74,7 +76,10 @@ export function track(target, key) {
 export function trigger(target, key) {
 	let keyMap = targetMap.get(target);
 	let deps = keyMap.get(key);
+	triggerEffects(deps);
+}
 
+export function triggerEffects(deps) {
 	for (const dep of deps) {
 		if (dep.scheduler) {
 			dep.scheduler();
