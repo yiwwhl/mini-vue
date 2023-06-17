@@ -3,7 +3,7 @@ import { merge } from "./shared/utils";
 let activeEffect;
 let shouldTrack;
 
-class ReactiveEffect {
+export class ReactiveEffect {
 	fn;
 	scheduler;
 	active = true;
@@ -11,7 +11,7 @@ class ReactiveEffect {
 	onStop: any;
 	onScheduler: any;
 
-	constructor(_fn, options) {
+	constructor(_fn, options?) {
 		merge(this, options);
 		this.fn = _fn;
 	}
