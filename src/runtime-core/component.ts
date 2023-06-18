@@ -60,9 +60,14 @@ function setupStatefulComponent(instance) {
 		 * 如果是 object 的话，会将该 object 合并到组件的上下文中
 		 */
 
+		setCurrentInstance(instance);
+
 		const setupResult = setup(shallowReadonly(instance.props), {
 			emit: instance.emit
 		});
+
+		setCurrentInstance(null);
+
 		handleSetupResult(instance, setupResult);
 	}
 }
@@ -86,4 +91,18 @@ function finishComponentSetup(instance) {
 	if (Component.render) {
 		instance.render = Component.render;
 	}
+}
+
+let currentInstance = null;
+
+export function getCurrentInstance() {
+	return currentInstance;
+}
+
+/**
+ * 合理封装函数是非常必要的，例如后续如果我们需要知道当前是哪一个 instance，只需要在这个函数中打一个断点即可
+ * 同时这个函数也起到了一个中间层的作用，也就是整个赋值操作必须通过这个函数，我们可以借助这个函数做很多事情
+ */
+export function setCurrentInstance(instance) {
+	currentInstance = instance;
 }
