@@ -1,3 +1,4 @@
+import { ShapeFlags } from "../shared/ShapeFlags";
 import { isArray, isObject, isString } from "../shared/is";
 import { createComponentInstance, setupComponent } from "./component";
 
@@ -11,10 +12,12 @@ function patch(vnode, container) {
 	 * 而出口就是拆箱到组件类型为 element 的时候，这时候需要去 mount 这个 element
 	 */
 
-	if (isString(vnode.type)) {
+	const { shapeFlags } = vnode;
+	if (shapeFlags & ShapeFlags.ELEMENT) {
 		processElement(vnode, container);
 	}
-	if (isObject(vnode.type)) {
+
+	if (shapeFlags & ShapeFlags.STATEFUL_COMPONENT) {
 		processComponent(vnode, container);
 	}
 }
@@ -43,12 +46,13 @@ function mountElement(vnode, container) {
 	 * 但是对于 happy 来说，我们首先关注的是 string 的 case
 	 */
 
-	const { children } = vnode;
-	if (isArray(children)) {
-		mountArrayChildren(vnode, el);
-	}
-	if (isString(children)) {
+	const { children, shapeFlags } = vnode;
+
+	if (shapeFlags & ShapeFlags.TEXT_CHILDREN) {
 		el.textContent = children;
+	}
+	if (shapeFlags & ShapeFlags.ARRAY_CHILDREN) {
+		mountArrayChildren(vnode, el);
 	}
 
 	const { props } = vnode;

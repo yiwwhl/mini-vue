@@ -1,3 +1,6 @@
+import { isArray, isString } from "../shared/is";
+import { ShapeFlags } from "../shared/ShapeFlags";
+
 export function createVNode(type, props?, children?) {
 	/**
 	 * 需要特别说明的是，初始化传入 App.js 的时候这里的 type
@@ -11,7 +14,21 @@ export function createVNode(type, props?, children?) {
 		type,
 		props,
 		children,
-		el: null
+		el: null,
+		shapeFlags: getShapeFlag(type)
 	};
+
+	if (isString(children)) {
+		vnode.shapeFlags |= ShapeFlags.TEXT_CHILDREN;
+	}
+
+	if (isArray(children)) {
+		vnode.shapeFlags |= ShapeFlags.ARRAY_CHILDREN;
+	}
+
 	return vnode;
+}
+
+function getShapeFlag(type) {
+	return isString(type) ? ShapeFlags.ELEMENT : ShapeFlags.STATEFUL_COMPONENT;
 }
