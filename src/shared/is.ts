@@ -15,3 +15,5 @@ export const isString = (value) => {
 };
 
 export const isArray = Array.isArray;
+
+export const isOn = (key) => /^on[A-Z]/.test(key);

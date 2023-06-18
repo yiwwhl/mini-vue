@@ -18,7 +18,13 @@ export default {
 				h(
 					"h1",
 					{
-						style: `color: green`
+						style: `color: green`,
+						onClick() {
+							console.log("hello click");
+						},
+						onMouseOver() {
+							console.log("mouse over");
+						}
 					},
 					"test children array 1"
 				),
