@@ -58,7 +58,6 @@ function mountElement(vnode, container) {
 	const { props } = vnode;
 
 	Object.keys(props).forEach((key) => {
-		console.log(key);
 		if (isOn(key)) {
 			const event = key.slice(2).toLowerCase();
 			el.addEventListener(event, props[key]);
