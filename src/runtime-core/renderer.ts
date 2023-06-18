@@ -10,6 +10,9 @@ function patch(vnode, container) {
 	 * 而出口就是拆箱到组件类型为 element 的时候，这时候需要去 mount 这个 element
 	 */
 
+	// TODO: element happy path
+	// processElement();
+
 	processComponent(vnode, container);
 }
 
