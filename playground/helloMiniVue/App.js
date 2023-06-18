@@ -1,4 +1,5 @@
 import { h } from "../../lib/mini-vue.esm.js";
+import HelloWorld from "./components/HelloWorld.js";
 
 window.self = null;
 export default {
@@ -21,9 +22,6 @@ export default {
 						style: `color: green`,
 						onClick() {
 							console.log("hello click");
-						},
-						onMouseOver() {
-							console.log("mouse over");
 						}
 					},
 					"test children array 1"
@@ -35,7 +33,10 @@ export default {
 						href: `https://www.baidu.com`
 					},
 					`go to baidu ${this.msg}`
-				)
+				),
+				h(HelloWorld, {
+					count: 88
+				})
 			]
 		);
 	}

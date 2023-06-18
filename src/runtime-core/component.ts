@@ -1,18 +1,21 @@
+import { readonly, shallowReadonly } from "../reactivity/reactive";
 import { isObject } from "../shared/is";
+import { initProps } from "./componentProps";
 import { publicInstanceProxyHandlers } from "./componentPublicInstance";
 
 export function createComponentInstance(vnode) {
 	const componentInstance = {
 		vnode,
 		type: vnode.type,
-		setupState: {}
+		setupState: {},
+		props: {}
 	};
 	return componentInstance;
 }
 
 export function setupComponent(instance) {
 	// TODO: handle props
-	// initProps()
+	initProps(instance, instance.vnode.props);
 	// TODO: handle slots
 	// initSlots()
 
@@ -50,7 +53,7 @@ function setupStatefulComponent(instance) {
 		 * 如果是 object 的话，会将该 object 合并到组件的上下文中
 		 */
 
-		const setupResult = setup();
+		const setupResult = setup(shallowReadonly(instance.props));
 		handleSetupResult(instance, setupResult);
 	}
 }

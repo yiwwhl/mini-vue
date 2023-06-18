@@ -1,3 +1,4 @@
+import { isObject } from "../shared/is";
 import {
 	mutableHandlers,
 	readonlyHandlers,
@@ -10,6 +11,7 @@ export const enum ReactiveFlags {
 }
 
 function createActiveObject(raw, baseHandlers) {
+	if (!isObject(raw)) return console.warn(`proxy target must be a object`);
 	return new Proxy(raw, baseHandlers);
 }
 
