@@ -1,6 +1,9 @@
 import { isArray, isObject, isObjectButNotArray, isString } from "../shared/is";
 import { ShapeFlags } from "../shared/ShapeFlags";
 
+export const Fragment = Symbol("Fragment");
+export const Text = Symbol("Text");
+
 export function createVNode(type, props?, children?) {
 	/**
 	 * 需要特别说明的是，初始化传入 App.js 的时候这里的 type
@@ -37,4 +40,8 @@ export function createVNode(type, props?, children?) {
 
 function getShapeFlag(type) {
 	return isString(type) ? ShapeFlags.ELEMENT : ShapeFlags.STATEFUL_COMPONENT;
+}
+
+export function createTextVNode(text) {
+	return createVNode(Text, {}, text);
 }

@@ -1,6 +1,7 @@
 import { ShapeFlags } from "../shared/ShapeFlags";
-import { isArray, isObject, isOn, isString } from "../shared/is";
+import { isOn } from "../shared/is";
 import { createComponentInstance, setupComponent } from "./component";
+import { Fragment, Text } from "./vnode";
 
 export function render(vnode, container) {
 	patch(vnode, container);
@@ -12,14 +13,37 @@ function patch(vnode, container) {
 	 * 而出口就是拆箱到组件类型为 element 的时候，这时候需要去 mount 这个 element
 	 */
 
-	const { shapeFlags } = vnode;
-	if (shapeFlags & ShapeFlags.ELEMENT) {
-		processElement(vnode, container);
-	}
+	const { type, shapeFlags } = vnode;
 
-	if (shapeFlags & ShapeFlags.STATEFUL_COMPONENT) {
-		processComponent(vnode, container);
+	// Fragment -> only render children
+	switch (type) {
+		case Fragment:
+			processFragment(vnode, container);
+			break;
+
+		case Text:
+			processText(vnode, container);
+			break;
+
+		default:
+			if (shapeFlags & ShapeFlags.ELEMENT) {
+				processElement(vnode, container);
+			}
+			if (shapeFlags & ShapeFlags.STATEFUL_COMPONENT) {
+				processComponent(vnode, container);
+			}
+			break;
 	}
+}
+
+function processText(vnode, container) {
+	const { children } = vnode;
+	const textNode = (vnode.el = document.createTextNode(children));
+	container.append(textNode);
+}
+
+function processFragment(vnode, container) {
+	mountArrayChildren(vnode, container);
 }
 
 function processComponent(vnode, container) {
