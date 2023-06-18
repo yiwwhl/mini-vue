@@ -1,4 +1,4 @@
-import { isObject } from "../reactivity/shared/is";
+import { isObject } from "../shared/is";
 import { publicInstanceProxyHandlers } from "./componentPublicInstance";
 
 export function createComponentInstance(vnode) {

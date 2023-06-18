@@ -1,4 +1,4 @@
-import { merge } from "./shared/utils";
+import { merge } from "../shared/utils";
 
 let activeEffect;
 let shouldTrack;

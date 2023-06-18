@@ -1,7 +1,7 @@
 import { track, trigger } from "./effect";
 import { ReactiveFlags, reactive, readonly } from "./reactive";
-import { isObject } from "./shared/is";
-import { merge } from "./shared/utils";
+import { isObject } from "../shared/is";
+import { merge } from "../shared/utils";
 
 function createGetter(isReadonly = false, isShallow = false) {
 	return function get(target, key) {

@@ -1,4 +1,4 @@
-import { isArray, isObject, isString } from "../reactivity/shared/is";
+import { isArray, isObject, isString } from "../shared/is";
 import { createComponentInstance, setupComponent } from "./component";
 
 export function render(vnode, container) {
