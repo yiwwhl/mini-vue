@@ -7,6 +7,28 @@ export default {
 		};
 	},
 	render() {
-		return h("div", {}, `hello ${this.msg}`);
+		return h(
+			"div",
+			{
+				style: `background: #333`
+			},
+			[
+				h(
+					"h1",
+					{
+						style: `color: green`
+					},
+					"test children array 1"
+				),
+				h(
+					"a",
+					{
+						style: `color: orange; font-size: 30px`,
+						href: `https://www.baidu.com`
+					},
+					"go to baidu"
+				)
+			]
+		);
 	}
 };

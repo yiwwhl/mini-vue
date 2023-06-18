@@ -1,3 +1,4 @@
+import { isArray, isObject, isString } from "../reactivity/shared/is";
 import { createComponentInstance, setupComponent } from "./component";
 
 export function render(vnode, container) {
@@ -10,10 +11,12 @@ function patch(vnode, container) {
 	 * 而出口就是拆箱到组件类型为 element 的时候，这时候需要去 mount 这个 element
 	 */
 
-	// TODO: element happy path
-	// processElement();
-
-	processComponent(vnode, container);
+	if (isString(vnode.type)) {
+		processElement(vnode, container);
+	}
+	if (isObject(vnode.type)) {
+		processComponent(vnode, container);
+	}
 }
 
 function processComponent(vnode, container) {
@@ -32,6 +35,35 @@ function mountComponent(vnode, container) {
 	setupRenderEffect(instance, container);
 }
 
+function mountElement(vnode, container) {
+	const el = document.createElement(vnode.type);
+
+	/**
+	 * 对于 children 来说，有两种类型，string 或 array，需要分别处理
+	 * 但是对于 happy 来说，我们首先关注的是 string 的 case
+	 */
+
+	const { children } = vnode;
+	if (isArray(children)) {
+		mountArrayChildren(vnode, el);
+	}
+	if (isString(children)) {
+		el.textContent = children;
+	}
+
+	const { props } = vnode;
+
+	Object.keys(props).forEach((key) => {
+		el.setAttribute(key, props[key]);
+	});
+
+	container.append(el);
+}
+
+function mountArrayChildren(vnode, container) {
+	vnode.children.forEach((v) => patch(v, container));
+}
+
 /**
  * 该操作主要在获取 render 的返回值，而 render 在上一步的 setup 中已经确认了一定有值
  * 所以这一阶段的 happy path 只需要简单调用 instance 上的 render
@@ -41,6 +73,15 @@ function mountComponent(vnode, container) {
  */
 function setupRenderEffect(instance, container) {
 	// 取名 subTree，因为通过 h 函数返回的是一棵 vnode 树
-	const subTree = instance.render();
+	const subTree = instance.render.call(instance.setupState);
 	patch(subTree, container);
+}
+
+/**
+ * 对于 element 的处理来说，有初始化和更新两种，首先实现初始化
+ */
+function processElement(vnode, container) {
+	// TODO: update
+
+	mountElement(vnode, container);
 }

@@ -1,4 +1,4 @@
-import { isObject } from "../reactivity/shared/utils";
+import { isObject } from "../reactivity/shared/is";
 
 export function createComponentInstance(vnode) {
 	const componentInstance = {
