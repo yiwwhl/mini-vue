@@ -11,7 +11,10 @@ export const enum ReactiveFlags {
 }
 
 function createActiveObject(raw, baseHandlers) {
-	if (!isObject(raw)) return console.warn(`proxy target must be a object`);
+	if (!isObject(raw)) {
+		console.warn(`proxy target must be a object`);
+		return;
+	}
 	return new Proxy(raw, baseHandlers);
 }
 
