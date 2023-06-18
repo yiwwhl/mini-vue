@@ -1,10 +1,11 @@
 import { isObject } from "../reactivity/shared/is";
+import { publicInstanceProxyHandlers } from "./componentPublicInstance";
 
 export function createComponentInstance(vnode) {
 	const componentInstance = {
 		vnode,
 		type: vnode.type,
-		setupState: undefined
+		setupState: {}
 	};
 	return componentInstance;
 }
@@ -33,6 +34,14 @@ export function setupComponent(instance) {
 function setupStatefulComponent(instance) {
 	// 你可以认为这里的 Component 命名，是为了和 defineComponent 产生对应
 	const Component = instance.type;
+
+	instance.proxy = new Proxy(
+		{
+			_: instance
+		},
+		publicInstanceProxyHandlers
+	);
+
 	const { setup } = Component;
 	if (setup) {
 		/**

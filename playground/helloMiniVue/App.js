@@ -1,5 +1,6 @@
 import { h } from "../../lib/mini-vue.esm.js";
 
+window.self = null;
 export default {
 	setup() {
 		return {
@@ -7,6 +8,7 @@ export default {
 		};
 	},
 	render() {
+		window.self = this;
 		return h(
 			"div",
 			{
@@ -26,7 +28,7 @@ export default {
 						style: `color: orange; font-size: 30px`,
 						href: `https://www.baidu.com`
 					},
-					"go to baidu"
+					`go to baidu ${this.msg}`
 				)
 			]
 		);

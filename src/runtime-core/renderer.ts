@@ -36,7 +36,7 @@ function mountComponent(vnode, container) {
 }
 
 function mountElement(vnode, container) {
-	const el = document.createElement(vnode.type);
+	const el = (vnode.el = document.createElement(vnode.type));
 
 	/**
 	 * 对于 children 来说，有两种类型，string 或 array，需要分别处理
@@ -73,8 +73,10 @@ function mountArrayChildren(vnode, container) {
  */
 function setupRenderEffect(instance, container) {
 	// 取名 subTree，因为通过 h 函数返回的是一棵 vnode 树
-	const subTree = instance.render.call(instance.setupState);
+	const { proxy } = instance;
+	const subTree = instance.render.call(proxy);
 	patch(subTree, container);
+	instance.vnode.el = subTree.el;
 }
 
 /**
