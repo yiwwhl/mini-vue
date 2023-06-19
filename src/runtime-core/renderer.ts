@@ -7,7 +7,7 @@ export function render(vnode, container) {
 	patch(vnode, container);
 }
 
-function patch(vnode, container) {
+function patch(vnode, container, parentComponent?) {
 	/**
 	 * 由于这是一个递归的过程，所以我们需要做一个判断，让这个递归有一出口
 	 * 而出口就是拆箱到组件类型为 element 的时候，这时候需要去 mount 这个 element
@@ -18,7 +18,7 @@ function patch(vnode, container) {
 	// Fragment -> only render children
 	switch (type) {
 		case Fragment:
-			processFragment(vnode, container);
+			processFragment(vnode, container, parentComponent);
 			break;
 
 		case Text:
@@ -27,10 +27,10 @@ function patch(vnode, container) {
 
 		default:
 			if (shapeFlags & ShapeFlags.ELEMENT) {
-				processElement(vnode, container);
+				processElement(vnode, container, parentComponent);
 			}
 			if (shapeFlags & ShapeFlags.STATEFUL_COMPONENT) {
-				processComponent(vnode, container);
+				processComponent(vnode, container, parentComponent);
 			}
 			break;
 	}
@@ -42,12 +42,12 @@ function processText(vnode, container) {
 	container.append(textNode);
 }
 
-function processFragment(vnode, container) {
-	mountArrayChildren(vnode, container);
+function processFragment(vnode, container, parentComponent) {
+	mountArrayChildren(vnode, container, parentComponent);
 }
 
-function processComponent(vnode, container) {
-	mountComponent(vnode, container);
+function processComponent(vnode, container, parentComponent) {
+	mountComponent(vnode, container, parentComponent);
 }
 
 /**
@@ -56,13 +56,13 @@ function processComponent(vnode, container) {
  * 2. 基于第一步创建的实例对象，装载诸如 props, slots 等元数据，同时处理 setup 函数和 render 函数的互动，最终生成一个渲染函数
  * 3.
  */
-function mountComponent(vnode, container) {
-	const instance = createComponentInstance(vnode);
+function mountComponent(vnode, container, parentComponent) {
+	const instance = createComponentInstance(vnode, parentComponent);
 	setupComponent(instance);
 	setupRenderEffect(instance, container);
 }
 
-function mountElement(vnode, container) {
+function mountElement(vnode, container, parentComponent) {
 	const el = (vnode.el = document.createElement(vnode.type));
 
 	/**
@@ -76,7 +76,7 @@ function mountElement(vnode, container) {
 		el.textContent = children;
 	}
 	if (shapeFlags & ShapeFlags.ARRAY_CHILDREN) {
-		mountArrayChildren(vnode, el);
+		mountArrayChildren(vnode, el, parentComponent);
 	}
 
 	const { props } = vnode;
@@ -93,8 +93,8 @@ function mountElement(vnode, container) {
 	container.append(el);
 }
 
-function mountArrayChildren(vnode, container) {
-	vnode.children.forEach((v) => patch(v, container));
+function mountArrayChildren(vnode, container, parentComponent) {
+	vnode.children.forEach((v) => patch(v, container, parentComponent));
 }
 
 /**
@@ -108,15 +108,15 @@ function setupRenderEffect(instance, container) {
 	// 取名 subTree，因为通过 h 函数返回的是一棵 vnode 树
 	const { proxy } = instance;
 	const subTree = instance.render.call(proxy);
-	patch(subTree, container);
+	patch(subTree, container, instance);
 	instance.vnode.el = subTree.el;
 }
 
 /**
  * 对于 element 的处理来说，有初始化和更新两种，首先实现初始化
  */
-function processElement(vnode, container) {
+function processElement(vnode, container, parentComponent) {
 	// TODO: update
 
-	mountElement(vnode, container);
+	mountElement(vnode, container, parentComponent);
 }

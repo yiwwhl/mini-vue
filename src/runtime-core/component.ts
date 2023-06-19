@@ -5,13 +5,20 @@ import { initProps } from "./componentProps";
 import { publicInstanceProxyHandlers } from "./componentPublicInstance";
 import { initSlots } from "./componentSlots";
 
-export function createComponentInstance(vnode) {
+export function createComponentInstance(vnode, parent) {
+	const provides = {};
+	if (parent) {
+		Object.setPrototypeOf(provides, parent.provides);
+	}
+
 	const componentInstance = {
 		vnode,
 		type: vnode.type,
 		setupState: {},
 		props: {},
 		slots: {},
+		provides,
+		parent,
 		emit: () => {}
 	};
 
@@ -93,7 +100,7 @@ function finishComponentSetup(instance) {
 	}
 }
 
-let currentInstance = null;
+let currentInstance: any = null;
 
 export function getCurrentInstance() {
 	return currentInstance;
