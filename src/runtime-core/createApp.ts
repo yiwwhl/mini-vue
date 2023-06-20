@@ -1,12 +1,16 @@
-import { render } from "./renderer";
+import { isString } from "../shared/is";
 import { createVNode } from "./vnode";
 
-export function createApp(rootComponent) {
-	return {
-		mount(rootContainerId) {
-			const rootContainer = document.querySelector(rootContainerId);
-			const vnode = createVNode(rootComponent);
-			render(vnode, rootContainer);
-		}
+export function createAppAPI(render) {
+	return function createApp(rootComponent) {
+		return {
+			mount(rootContainerId) {
+				if (isString(rootContainerId)) {
+					rootContainerId = document.querySelector(rootContainerId);
+				}
+				const vnode = createVNode(rootComponent);
+				render(vnode, rootContainerId);
+			}
+		};
 	};
 }
