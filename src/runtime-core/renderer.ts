@@ -3,13 +3,15 @@ import { ShapeFlags } from "../shared/ShapeFlags";
 import { isEmptyObject } from "../shared/is";
 import { createComponentInstance, setupComponent } from "./component";
 import { createAppAPI } from "./createApp";
-import { Fragment, Text } from "./vnode";
+import { Fragment, Text, createTextVNode } from "./vnode";
 
 export function createRenderer(options) {
 	const {
 		createElement: hostCreateElement,
 		patchProp: hostPatchProp,
-		insert: hostInsert
+		insert: hostInsert,
+		remove: hostRemove,
+		setElementText: hostSetElementText
 	} = options;
 
 	function render(vnode, container) {
@@ -22,7 +24,7 @@ export function createRenderer(options) {
 		 * 而出口就是拆箱到组件类型为 element 的时候，这时候需要去 mount 这个 element
 		 */
 
-		const { type, shapeFlags } = newVnode;
+		const { type, shapeFlag } = newVnode;
 
 		// Fragment -> only render children
 		switch (type) {
@@ -35,10 +37,10 @@ export function createRenderer(options) {
 				break;
 
 			default:
-				if (shapeFlags & ShapeFlags.ELEMENT) {
+				if (shapeFlag & ShapeFlags.ELEMENT) {
 					processElement(oldVnode, newVnode, container, parentComponent);
 				}
-				if (shapeFlags & ShapeFlags.STATEFUL_COMPONENT) {
+				if (shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
 					processComponent(oldVnode, newVnode, container, parentComponent);
 				}
 				break;
@@ -52,7 +54,7 @@ export function createRenderer(options) {
 	}
 
 	function processFragment(oldVnode, newVnode, container, parentComponent) {
-		mountArrayChildren(newVnode, container, parentComponent);
+		mountArrayChildren(newVnode.children, container, parentComponent);
 	}
 
 	function processComponent(oldVnode, newVnode, container, parentComponent) {
@@ -79,13 +81,13 @@ export function createRenderer(options) {
 		 * 但是对于 happy 来说，我们首先关注的是 string 的 case
 		 */
 
-		const { children, shapeFlags } = vnode;
+		const { children, shapeFlag } = vnode;
 
-		if (shapeFlags & ShapeFlags.TEXT_CHILDREN) {
+		if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
 			el.textContent = children;
 		}
-		if (shapeFlags & ShapeFlags.ARRAY_CHILDREN) {
-			mountArrayChildren(vnode, el, parentComponent);
+		if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
+			mountArrayChildren(vnode.children, el, parentComponent);
 		}
 
 		const { props } = vnode;
@@ -97,8 +99,8 @@ export function createRenderer(options) {
 		hostInsert(el, container);
 	}
 
-	function mountArrayChildren(vnode, container, parentComponent) {
-		vnode.children.forEach((v) => patch(null, v, container, parentComponent));
+	function mountArrayChildren(children, container, parentComponent) {
+		children.forEach((v) => patch(null, v, container, parentComponent));
 	}
 
 	/**
@@ -134,19 +136,70 @@ export function createRenderer(options) {
 		if (!oldVnode) {
 			mountElement(newVnode, container, parentComponent);
 		} else {
-			patchElement(oldVnode, newVnode, container);
+			patchElement(oldVnode, newVnode, container, parentComponent);
 		}
 	}
 
-	function patchElement(oldVnode, newVnode, container) {
-		console.log("hiss", oldVnode, newVnode);
+	function patchElement(oldVnode, newVnode, container, parentComponent) {
+		console.log("oldVnode", oldVnode);
+		console.log("newVnode", newVnode);
 		// TODO: compare
 		// props
 		const oldProps = oldVnode.props ?? {};
 		const newProps = newVnode.props ?? {};
 		const el = (newVnode.el = oldVnode.el);
+		patchChildren(oldVnode, newVnode, el, parentComponent);
 		patchProps(el, oldProps, newProps);
-		// children
+	}
+
+	function patchChildren(oldVnode, newVnode, container, parentComponent) {
+		/**
+		 * children 的四种更新情况
+		 * 1. array to text
+		 * 2. text to text
+		 * 3. array to array
+		 * 4. text to array
+		 */
+		const { shapeFlag: oldShapeFlag } = oldVnode;
+		const { shapeFlag: newShapFlag } = newVnode;
+
+		if (oldShapeFlag & ShapeFlags.ARRAY_CHILDREN) {
+			// array to text
+			if (newShapFlag & ShapeFlags.TEXT_CHILDREN) {
+				// 1. clear old children
+
+				unmountChildren(oldVnode.children);
+			}
+
+			console.log("hi", oldVnode.children, newVnode.children);
+
+			// 2. set text
+			if (oldVnode.children !== newVnode.children) {
+				hostSetElementText(container, newVnode.children);
+			}
+		}
+
+		if (oldShapeFlag & ShapeFlags.TEXT_CHILDREN) {
+			if (newShapFlag & ShapeFlags.TEXT_CHILDREN) {
+				if (oldVnode.children !== newVnode.children) {
+					hostSetElementText(container, newVnode.children);
+				}
+			}
+
+			if (newShapFlag & ShapeFlags.ARRAY_CHILDREN) {
+				hostSetElementText(container, "");
+				mountArrayChildren(newVnode.children, container, parentComponent);
+			}
+		}
+	}
+
+	function unmountChildren(children) {
+		console.log(children);
+		children.forEach((v) => {
+			const el = v.el;
+			// remove
+			hostRemove(el);
+		});
 	}
 
 	function patchProps(el, oldProps, newProps) {

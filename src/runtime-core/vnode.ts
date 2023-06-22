@@ -18,20 +18,20 @@ export function createVNode(type, props?, children?) {
 		props,
 		children,
 		el: null,
-		shapeFlags: getShapeFlag(type)
+		shapeFlag: getShapeFlag(type)
 	};
 
 	if (isString(children)) {
-		vnode.shapeFlags |= ShapeFlags.TEXT_CHILDREN;
+		vnode.shapeFlag |= ShapeFlags.TEXT_CHILDREN;
 	}
 
 	if (isArray(children)) {
-		vnode.shapeFlags |= ShapeFlags.ARRAY_CHILDREN;
+		vnode.shapeFlag |= ShapeFlags.ARRAY_CHILDREN;
 	}
 
-	if (vnode.shapeFlags & ShapeFlags.STATEFUL_COMPONENT) {
+	if (vnode.shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
 		if (isObjectButNotArray(children)) {
-			vnode.shapeFlags |= ShapeFlags.SLOT_CHILDREN;
+			vnode.shapeFlag |= ShapeFlags.SLOT_CHILDREN;
 		}
 	}
 

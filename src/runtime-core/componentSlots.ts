@@ -1,7 +1,7 @@
 import { ShapeFlags } from "../shared/ShapeFlags";
 
 export function initSlots(instance, children) {
-	if (instance.vnode.shapeFlags & ShapeFlags.SLOT_CHILDREN) {
+	if (instance.vnode.shapeFlag & ShapeFlags.SLOT_CHILDREN) {
 		normalizeObjectSlots(children, instance.slots);
 	}
 }
