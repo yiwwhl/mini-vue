@@ -1,3 +1,4 @@
+import { proxyRefs } from "../reactivity";
 import { readonly, shallowReadonly } from "../reactivity/reactive";
 import { isObject } from "../shared/is";
 import { emit } from "./componentEmit";
@@ -19,6 +20,8 @@ export function createComponentInstance(vnode, parent) {
 		slots: {},
 		provides,
 		parent,
+		isMounted: false,
+		subTree: {},
 		emit: () => {}
 	};
 
@@ -87,7 +90,7 @@ function handleSetupResult(instance, setupResult) {
 	// TODO: implement function later
 
 	if (isObject(setupResult)) {
-		instance.setupState = setupResult;
+		instance.setupState = proxyRefs(setupResult);
 	}
 
 	finishComponentSetup(instance);

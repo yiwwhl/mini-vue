@@ -1,15 +1,20 @@
 import { createRenderer } from "../runtime-core";
-import { isOn } from "../shared/is";
+import { isNullOrUndefined, isOn } from "../shared/is";
 
 function createElement(type) {
 	return document.createElement(type);
 }
-function patchProp(el, key, value) {
+function patchProp(el, key, prevValue, nextValue) {
 	if (isOn(key)) {
 		const event = key.slice(2).toLowerCase();
-		el.addEventListener(event, value);
+		el.addEventListener(event, nextValue);
 	} else {
-		el.setAttribute(key, value);
+		if (isNullOrUndefined(nextValue)) {
+			// should remove prop
+			el.removeAttribute(key);
+		} else {
+			el.setAttribute(key, nextValue);
+		}
 	}
 }
 function insert(el, container) {

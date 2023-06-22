@@ -1,4 +1,6 @@
+import { effect } from "../reactivity/effect";
 import { ShapeFlags } from "../shared/ShapeFlags";
+import { isEmptyObject } from "../shared/is";
 import { createComponentInstance, setupComponent } from "./component";
 import { createAppAPI } from "./createApp";
 import { Fragment, Text } from "./vnode";
@@ -11,50 +13,50 @@ export function createRenderer(options) {
 	} = options;
 
 	function render(vnode, container) {
-		patch(vnode, container);
+		patch(null, vnode, container);
 	}
 
-	function patch(vnode, container, parentComponent?) {
+	function patch(oldVnode, newVnode, container, parentComponent?) {
 		/**
 		 * 由于这是一个递归的过程，所以我们需要做一个判断，让这个递归有一出口
 		 * 而出口就是拆箱到组件类型为 element 的时候，这时候需要去 mount 这个 element
 		 */
 
-		const { type, shapeFlags } = vnode;
+		const { type, shapeFlags } = newVnode;
 
 		// Fragment -> only render children
 		switch (type) {
 			case Fragment:
-				processFragment(vnode, container, parentComponent);
+				processFragment(oldVnode, newVnode, container, parentComponent);
 				break;
 
 			case Text:
-				processText(vnode, container);
+				processText(oldVnode, newVnode, container);
 				break;
 
 			default:
 				if (shapeFlags & ShapeFlags.ELEMENT) {
-					processElement(vnode, container, parentComponent);
+					processElement(oldVnode, newVnode, container, parentComponent);
 				}
 				if (shapeFlags & ShapeFlags.STATEFUL_COMPONENT) {
-					processComponent(vnode, container, parentComponent);
+					processComponent(oldVnode, newVnode, container, parentComponent);
 				}
 				break;
 		}
 	}
 
-	function processText(vnode, container) {
-		const { children } = vnode;
-		const textNode = (vnode.el = document.createTextNode(children));
+	function processText(oldVnode, newVnode, container) {
+		const { children } = newVnode;
+		const textNode = (newVnode.el = document.createTextNode(children));
 		container.append(textNode);
 	}
 
-	function processFragment(vnode, container, parentComponent) {
-		mountArrayChildren(vnode, container, parentComponent);
+	function processFragment(oldVnode, newVnode, container, parentComponent) {
+		mountArrayChildren(newVnode, container, parentComponent);
 	}
 
-	function processComponent(vnode, container, parentComponent) {
-		mountComponent(vnode, container, parentComponent);
+	function processComponent(oldVnode, newVnode, container, parentComponent) {
+		mountComponent(newVnode, container, parentComponent);
 	}
 
 	/**
@@ -89,14 +91,14 @@ export function createRenderer(options) {
 		const { props } = vnode;
 
 		Object.keys(props).forEach((key) => {
-			hostPatchProp(el, key, props[key]);
+			hostPatchProp(el, key, null, props[key]);
 		});
 
 		hostInsert(el, container);
 	}
 
 	function mountArrayChildren(vnode, container, parentComponent) {
-		vnode.children.forEach((v) => patch(v, container, parentComponent));
+		vnode.children.forEach((v) => patch(null, v, container, parentComponent));
 	}
 
 	/**
@@ -108,19 +110,63 @@ export function createRenderer(options) {
 	 */
 	function setupRenderEffect(instance, container) {
 		// 取名 subTree，因为通过 h 函数返回的是一棵 vnode 树
-		const { proxy } = instance;
-		const subTree = instance.render.call(proxy);
-		patch(subTree, container, instance);
-		instance.vnode.el = subTree.el;
+		effect(() => {
+			if (!instance.isMounted) {
+				const { proxy } = instance;
+				const subTree = (instance.subTree = instance.render.call(proxy));
+				patch(null, subTree, container, instance);
+				instance.vnode.el = subTree.el;
+				instance.isMounted = true;
+			} else {
+				const { proxy } = instance;
+				const subTree = instance.render.call(proxy);
+				const prevSubTree = instance.subTree;
+				instance.subTree = subTree;
+				patch(prevSubTree, subTree, container, instance);
+			}
+		});
 	}
 
 	/**
 	 * 对于 element 的处理来说，有初始化和更新两种，首先实现初始化
 	 */
-	function processElement(vnode, container, parentComponent) {
-		// TODO: update
+	function processElement(oldVnode, newVnode, container, parentComponent) {
+		if (!oldVnode) {
+			mountElement(newVnode, container, parentComponent);
+		} else {
+			patchElement(oldVnode, newVnode, container);
+		}
+	}
 
-		mountElement(vnode, container, parentComponent);
+	function patchElement(oldVnode, newVnode, container) {
+		console.log("hiss", oldVnode, newVnode);
+		// TODO: compare
+		// props
+		const oldProps = oldVnode.props ?? {};
+		const newProps = newVnode.props ?? {};
+		const el = (newVnode.el = oldVnode.el);
+		patchProps(el, oldProps, newProps);
+		// children
+	}
+
+	function patchProps(el, oldProps, newProps) {
+		if (oldProps !== newProps) {
+			for (const key in newProps) {
+				const prevProp = oldProps[key];
+				const nextProp = newProps[key];
+				if (prevProp !== nextProp) {
+					hostPatchProp(el, key, prevProp, nextProp);
+				}
+			}
+
+			if (isEmptyObject(oldProps)) {
+				for (const oldKey in oldProps) {
+					if (!(oldKey in newProps)) {
+						hostPatchProp(el, oldKey, oldProps[oldKey], null);
+					}
+				}
+			}
+		}
 	}
 
 	return {

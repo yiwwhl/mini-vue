@@ -1,9 +1,17 @@
+export function isEmptyObject(value) {
+	return isObjectButNotArray(value) && Object.keys(value).length === 0;
+}
+
+export function isNullOrUndefined(value) {
+	return isNull(value) || isUndefined(value);
+}
+
 export function isNull(value) {
 	return value === null;
 }
 
 export function isUndefined(value) {
-	return value === null;
+	return value === undefined;
 }
 
 export const isObjectButNotArray = (value) => {
