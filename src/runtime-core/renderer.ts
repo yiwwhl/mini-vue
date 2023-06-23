@@ -4,6 +4,7 @@ import { isEmptyObject, isNullOrUndefined, isUndefined } from "../shared/is";
 import { createComponentInstance, setupComponent } from "./component";
 import { shouldUpdateComponent } from "./componentUpdateUtils";
 import { createAppAPI } from "./createApp";
+import { queueJobs } from "./scheduler";
 import { Fragment, Text, createTextVNode } from "./vnode";
 
 export function createRenderer(options) {
@@ -135,26 +136,34 @@ export function createRenderer(options) {
 	 */
 	function setupRenderEffect(instance, container) {
 		// 取名 subTree，因为通过 h 函数返回的是一棵 vnode 树
-		instance.update = effect(() => {
-			if (!instance.isMounted) {
-				const { proxy } = instance;
-				const subTree = (instance.subTree = instance.render.call(proxy));
-				patch(null, subTree, container, instance);
-				instance.vnode.el = subTree.el;
-				instance.isMounted = true;
-			} else {
-				const { proxy } = instance;
-				const { next, vnode } = instance;
-				if (next) {
-					next.el = vnode.el;
-					updateComponentPreRender(instance, next);
+		instance.update = effect(
+			() => {
+				if (!instance.isMounted) {
+					const { proxy } = instance;
+					const subTree = (instance.subTree = instance.render.call(proxy));
+					patch(null, subTree, container, instance);
+					instance.vnode.el = subTree.el;
+					instance.isMounted = true;
+				} else {
+					const { proxy } = instance;
+					const { next, vnode } = instance;
+					if (next) {
+						next.el = vnode.el;
+						updateComponentPreRender(instance, next);
+					}
+					const subTree = instance.render.call(proxy);
+					const prevSubTree = instance.subTree;
+					instance.subTree = subTree;
+					patch(prevSubTree, subTree, container, instance);
 				}
-				const subTree = instance.render.call(proxy);
-				const prevSubTree = instance.subTree;
-				instance.subTree = subTree;
-				patch(prevSubTree, subTree, container, instance);
+			},
+			{
+				scheduler() {
+					console.log("update");
+					queueJobs(instance.update);
+				}
 			}
-		});
+		);
 	}
 
 	function updateComponentPreRender(instance, nextVNode) {
