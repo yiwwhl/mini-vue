@@ -73,14 +73,14 @@ import { ref, h } from "../../lib/mini-vue.esm.js";
  * i = 0, e1 = -1, e2 = 1
  */
 
-const prevChildren = [h("p", { key: "A" }, "A"), h("p", { key: "B" }, "B")];
+// const prevChildren = [h("p", { key: "A" }, "A"), h("p", { key: "B" }, "B")];
 
-const nextChildren = [
-	h("p", { key: "D" }, "D"),
-	h("p", { key: "C" }, "C"),
-	h("p", { key: "A" }, "A"),
-	h("p", { key: "B" }, "B")
-];
+// const nextChildren = [
+// 	h("p", { key: "D" }, "D"),
+// 	h("p", { key: "C" }, "C"),
+// 	h("p", { key: "A" }, "A"),
+// 	h("p", { key: "B" }, "B")
+// ];
 
 /**
  * 左侧对比，老的比新的长，删除老的
@@ -112,6 +112,92 @@ const nextChildren = [
 
 // const nextChildren = [h("p", { key: "B" }, "B"), h("p", { key: "C" }, "C")];
 
+/**
+ * 对比中间部分
+ * 第二种情况，删除老的（在老的里面存在，新的里面不存在）
+ *
+ * ab(cedo)fg
+ * ab(ec)fg
+ * d 节点在新的节点中不存在，需要删除
+ * c 节点 props 发生了变化
+ */
+
+// const prevChildren = [
+// 	h("p", { key: "A" }, "A"),
+// 	h("p", { key: "B" }, "B"),
+// 	h("p", { key: "C", id: "c-old" }, "C"),
+// 	h("p", { key: "E" }, "E"),
+// 	h("p", { key: "D" }, "D"),
+// 	h("p", { key: "O" }, "O"),
+// 	h("p", { key: "F" }, "F"),
+// 	h("p", { key: "G" }, "G")
+// ];
+
+// const nextChildren = [
+// 	h("p", { key: "A" }, "A"),
+// 	h("p", { key: "B" }, "B"),
+// 	h("p", { key: "E" }, "E"),
+// 	h("p", { key: "C", id: "c-new" }, "C"),
+// 	h("p", { key: "F" }, "F"),
+// 	h("p", { key: "G" }, "G")
+// ];
+
+/**
+ * 对比中间部分
+ * 第三种情况，移动
+ *
+ * ab(cde)fg
+ * ab(ecd)fg
+ * 最长子序列 [1, 2]
+ */
+// const prevChildren = [
+// 	h("p", { key: "A" }, "A"),
+// 	h("p", { key: "B" }, "B"),
+// 	h("p", { key: "C", id: "c-old" }, "C"),
+// 	h("p", { key: "D" }, "D"),
+// 	h("p", { key: "E" }, "E"),
+// 	h("p", { key: "F" }, "F"),
+// 	h("p", { key: "G" }, "G")
+// ];
+
+// const nextChildren = [
+// 	h("p", { key: "A" }, "A"),
+// 	h("p", { key: "B" }, "B"),
+// 	h("p", { key: "E" }, "E"),
+// 	h("p", { key: "C", id: "c-new" }, "C"),
+// 	h("p", { key: "X" }, "X"),
+// 	h("p", { key: "D" }, "D"),
+// 	h("p", { key: "F" }, "F"),
+// 	h("p", { key: "G" }, "G")
+// ];
+
+/**
+ * 综合例子
+ * ab(cdez)fg
+ * ab(dcye)fg
+ */
+
+const prevChildren = [
+	h("p", { key: "A" }, "A"),
+	h("p", { key: "B" }, "B"),
+	h("p", { key: "C", id: "c-old" }, "C"),
+	h("p", { key: "D" }, "D"),
+	h("p", { key: "E" }, "E"),
+	h("p", { key: "Z" }, "Z"),
+	h("p", { key: "F" }, "F"),
+	h("p", { key: "G" }, "G")
+];
+
+const nextChildren = [
+	h("p", { key: "A" }, "A"),
+	h("p", { key: "B" }, "B"),
+	h("p", { key: "D" }, "D"),
+	h("p", { key: "C", id: "c-new" }, "C"),
+	h("p", { key: "Y" }, "Y"),
+	h("p", { key: "E" }, "E"),
+	h("p", { key: "F" }, "F"),
+	h("p", { key: "G" }, "G")
+];
 export default {
 	name: "ArrayToText",
 	setup() {

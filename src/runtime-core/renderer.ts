@@ -1,6 +1,6 @@
 import { effect } from "../reactivity/effect";
 import { ShapeFlags } from "../shared/ShapeFlags";
-import { isEmptyObject } from "../shared/is";
+import { isEmptyObject, isNullOrUndefined, isUndefined } from "../shared/is";
 import { createComponentInstance, setupComponent } from "./component";
 import { createAppAPI } from "./createApp";
 import { Fragment, Text, createTextVNode } from "./vnode";
@@ -280,7 +280,6 @@ export function createRenderer(options) {
 		console.log("i", i);
 		console.log("e1", e1);
 		console.log("e2", e2);
-		console.log("----------------------------------");
 
 		// 3. 左侧对比情况下：新的比老的多，需要创建新的节点
 		if (i > e1) {
@@ -320,7 +319,169 @@ export function createRenderer(options) {
 		 * 1. 创建新的（在老的里面不存在，在新的里面存在）
 		 * 2. 删除老的（在老的里面存在， 在新的里面不存在）
 		 * 3. 移动（节点同时存在于新的和老的里面，但是位置变了）
+		 *
+		 * 而对于乱序来说，比如 ab(cd)fg 和 ab(ec)fg，我们会锁定对比算法到中间的 cd 和 ec 上
+		 * 那么这个时候，如果希望实现第二种情况，也就是将老的删除，我们需要遍历老的节点，看看是否在新的节点中，
+		 * 伪代码可以认为是 [c,d].forEach((i) => if(![e,c].includes(i)) { hostRemove(i.el)})
+		 *
+		 * 如果这个 list 刚好被 key 标识过，那么查找算法的复杂度会下降
+		 * 找不到就删除，找到了就调用 patch 继续对比 props 和 children
 		 */
+
+		// 中间对比
+		/**
+		 * 对于移动节点来说，我们需要尽可能保证被移动的节点数量更少，这是因为整个 diff 算法在框架中使用非常频繁，
+		 * 对性能要求极高
+		 * 而保证移动节点数量少的关键就是寻找到【最长递增子序列】
+		 * 比如，对于 cde 和 ecd 来说，cd 是相对稳定的序列，需要变的是 e 这个节点的位置
+		 */
+
+		let oldStart = i; // 老节点的开始
+		let newStart = i; // 新节点的开始
+		let shouldMove = false;
+		let currentMaxiumIndex = 0;
+
+		// 新节点的映射表建立
+		/**
+		 * 延伸：这也引出了一个经典的问题，也就是为什么不推荐用 index 作 key
+		 * 如果用 index 作 key，而我们判断两个节点是否是同一个节点的依据中，也就是 isVNodeTypeTheSame 中用到了这个 key
+		 * 1.如果形如 ABC -> BCD，但又比较复杂导致 A B C 的 type 各不相同时，无法判断出 ABC 中 index 为 1 的 B 和 BCD 中 index 为 0 的 B 是同一个
+		 * 则会导致无法复用 dom
+		 * 2.存在数据错位的风险，比如 ABC -> DABC，如果刚好 A 和 D 的 type 相同，会认为 A 和 D 是可复用的，因为他们的 key 都是 0
+		 * 那么会导致 A 的数据残留在 D 这个组件中，带来预期外的问题
+		 */
+		// 记录 patch 过的节点
+		const toBePatched = e2 - newStart + 1;
+		let patched = 0;
+
+		const KeyToNewIndexMap = new Map();
+
+		// 这里创建映射关系是为了寻找最长递增子序列，而给一个定长的数组，是为了保证更高的性能
+		const newIndexToOldIndexMap = new Array(toBePatched);
+		for (let i = 0; i < toBePatched; i++) {
+			newIndexToOldIndexMap[i] = 0;
+		}
+
+		for (let i = newStart; i <= e2; i++) {
+			const newChild = newChildren[i];
+			KeyToNewIndexMap.set(newChild.key, i);
+		}
+
+		console.log(
+			"如果有 key 时创建的一个 keyToNewIndex 映射表：",
+			KeyToNewIndexMap
+		);
+
+		for (let i = oldStart; i <= e1; i++) {
+			const oldChild = oldChildren[i];
+			let newIndex; // 这个 newIndex 将是最终查找 anchor 的关键，也是新旧节点如果发生位置变化后的一个插入依据
+
+			if (patched >= toBePatched) {
+				hostRemove(oldChild.el);
+				continue;
+			}
+
+			if (!isNullOrUndefined(oldChild.key)) {
+				newIndex = KeyToNewIndexMap.get(oldChild.key);
+			} else {
+				for (let j = newStart; j <= e2; j++) {
+					const newChild = newChildren[j];
+
+					if (isVNodeTypeTheSame(oldChild, newChild)) {
+						newIndex = j;
+						break;
+					}
+				}
+			}
+
+			if (isNullOrUndefined(newIndex)) {
+				hostRemove(oldChild.el);
+			} else {
+				/**
+				 * 因为移动的逻辑是基于存在的，必须存在才能够移动，所以在这可以拿到老节点中存在的节点索引
+				 */
+
+				if (newIndex >= currentMaxiumIndex) {
+					currentMaxiumIndex = newIndex;
+				} else {
+					shouldMove = true;
+				}
+
+				// 注意这里的 i 可能为 0，代表他在老节点中是第 0 个，但是 0 对于这个映射关系有重要的意义
+				// 如果为 0，我们最终会认为他不存在于新的节点中，因为初始化的时候也用的 0，所以在这用 i+1 避免这个问题
+				newIndexToOldIndexMap[newIndex - newStart] = i + 1;
+
+				patch(oldChild, newChildren[newIndex], container, parentComponent);
+				patched++;
+			}
+		}
+
+		console.log("寻找最长递增子序列时的映射关系表：", newIndexToOldIndexMap);
+
+		// 求出最长递增子序列
+		const longestIncreasingSubsequence = shouldMove
+			? getLongestIncreasingSubsequence(newIndexToOldIndexMap)
+			: [];
+		console.log("最长递增子序列：", longestIncreasingSubsequence);
+		let j = longestIncreasingSubsequence.length - 1;
+
+		for (let i = toBePatched - 1; i >= 0; i--) {
+			const nextIndex = i + newStart;
+			const nextChild = newChildren[nextIndex];
+			const anchor =
+				nextIndex + 1 < newChildren.length
+					? newChildren[nextIndex + 1].el
+					: null;
+
+			/**
+			 * 之前其实也提到了 i+1 避免为 0 的问题，这里的 0 其实就是一个标识，标识他在老的节点中不存在，需要创建
+			 * 这是因为当我们初始化映射表的时候，会将差异节点的旧表节点值初始化为 0，并在旧表中找到对应节点后标识索引 + 1
+			 */
+			if (newIndexToOldIndexMap[i] === 0) {
+				patch(null, nextChild, container, parentComponent, anchor);
+			}
+
+			if (shouldMove) {
+				if (j < 0 || i !== longestIncreasingSubsequence[j]) {
+					hostInsert(nextChild.el, container, anchor);
+				} else {
+					j--;
+				}
+			}
+		}
+
+		console.log("----------------------------------");
+	}
+
+	function getLongestIncreasingSubsequence(nums) {
+		if (nums.length == 0) {
+			return [];
+		}
+
+		let dp = new Array(nums.length).fill(1);
+		let prev = new Array(nums.length).fill(-1);
+		let maxLen = 1;
+		let maxIndex = 0;
+
+		for (let i = 1; i < nums.length; i++) {
+			for (let j = 0; j < i; j++) {
+				if (nums[i] > nums[j] && dp[j] + 1 > dp[i]) {
+					dp[i] = dp[j] + 1;
+					prev[i] = j;
+				}
+			}
+			if (dp[i] > maxLen) {
+				maxLen = dp[i];
+				maxIndex = i;
+			}
+		}
+
+		let longestSubseqIndexes: any[] = [];
+		for (let i = maxIndex; i >= 0; i = prev[i]) {
+			longestSubseqIndexes.unshift(i);
+		}
+
+		return longestSubseqIndexes;
 	}
 
 	function unmountChildren(children) {
