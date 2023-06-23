@@ -17,8 +17,11 @@ function patchProp(el, key, prevValue, nextValue) {
 		}
 	}
 }
-function insert(el, container) {
-	container.append(el);
+function insert(child, container, anchor) {
+	/**
+	 * 这个 api 比较有意思，如果 anchor 未指定，则默认行为是 append，如果指定，则会将节点添加到 anchor 之前
+	 */
+	container.insertBefore(child, anchor);
 }
 
 function remove(el) {

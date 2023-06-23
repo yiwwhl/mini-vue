@@ -18,7 +18,7 @@ export function createRenderer(options) {
 		patch(null, vnode, container);
 	}
 
-	function patch(oldVnode, newVnode, container, parentComponent?) {
+	function patch(oldVnode, newVnode, container, parentComponent?, anchor?) {
 		/**
 		 * 由于这是一个递归的过程，所以我们需要做一个判断，让这个递归有一出口
 		 * 而出口就是拆箱到组件类型为 element 的时候，这时候需要去 mount 这个 element
@@ -38,7 +38,13 @@ export function createRenderer(options) {
 
 			default:
 				if (shapeFlag & ShapeFlags.ELEMENT) {
-					processElement(oldVnode, newVnode, container, parentComponent);
+					processElement(
+						oldVnode,
+						newVnode,
+						container,
+						parentComponent,
+						anchor
+					);
 				}
 				if (shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
 					processComponent(oldVnode, newVnode, container, parentComponent);
@@ -73,7 +79,7 @@ export function createRenderer(options) {
 		setupRenderEffect(instance, container);
 	}
 
-	function mountElement(vnode, container, parentComponent) {
+	function mountElement(vnode, container, parentComponent, anchor) {
 		const el = (vnode.el = hostCreateElement(vnode.type));
 
 		/**
@@ -96,7 +102,8 @@ export function createRenderer(options) {
 			hostPatchProp(el, key, null, props[key]);
 		});
 
-		hostInsert(el, container);
+		// 需要在 insert 的时候指定锚点
+		hostInsert(el, container, anchor);
 	}
 
 	function mountArrayChildren(children, container, parentComponent) {
@@ -132,17 +139,21 @@ export function createRenderer(options) {
 	/**
 	 * 对于 element 的处理来说，有初始化和更新两种，首先实现初始化
 	 */
-	function processElement(oldVnode, newVnode, container, parentComponent) {
+	function processElement(
+		oldVnode,
+		newVnode,
+		container,
+		parentComponent,
+		anchor
+	) {
 		if (!oldVnode) {
-			mountElement(newVnode, container, parentComponent);
+			mountElement(newVnode, container, parentComponent, anchor);
 		} else {
 			patchElement(oldVnode, newVnode, container, parentComponent);
 		}
 	}
 
 	function patchElement(oldVnode, newVnode, container, parentComponent) {
-		console.log("oldVnode", oldVnode);
-		console.log("newVnode", newVnode);
 		// TODO: compare
 		// props
 		const oldProps = oldVnode.props ?? {};
@@ -167,15 +178,21 @@ export function createRenderer(options) {
 			// array to text
 			if (newShapFlag & ShapeFlags.TEXT_CHILDREN) {
 				// 1. clear old children
-
 				unmountChildren(oldVnode.children);
+				// 2. set text
+				if (oldVnode.children !== newVnode.children) {
+					hostSetElementText(container, newVnode.children);
+				}
 			}
 
-			console.log("hi", oldVnode.children, newVnode.children);
-
-			// 2. set text
-			if (oldVnode.children !== newVnode.children) {
-				hostSetElementText(container, newVnode.children);
+			if (newShapFlag & ShapeFlags.ARRAY_CHILDREN) {
+				// array to array
+				patchKeyedChildren(
+					oldVnode.children,
+					newVnode.children,
+					container,
+					parentComponent
+				);
 			}
 		}
 
@@ -191,6 +208,119 @@ export function createRenderer(options) {
 				mountArrayChildren(newVnode.children, container, parentComponent);
 			}
 		}
+	}
+
+	function isVNodeTypeTheSame(oldChild, newChild) {
+		/**
+		 *  决定两个虚拟节点是否一样有两种方式
+		 *  1. type：虚拟节点类型
+		 *  2. key
+		 */
+		return oldChild.type === newChild.type && oldChild.key === newChild.key;
+	}
+
+	function patchKeyedChildren(
+		oldChildren,
+		newChildren,
+		container,
+		parentComponent
+	) {
+		// init pointer
+		let i = 0;
+		let e1 = oldChildren.length - 1;
+		let e2 = newChildren.length - 1;
+
+		// 左侧
+		while (i <= e1 && i <= e2) {
+			const oldChild = oldChildren[i];
+			const newChild = newChildren[i];
+
+			/**
+			 * 这里再简单的解释一下，isVNodeTypeTheSame 是为了判断新旧虚拟节点是否同一个类型，这里判断的标准是
+			 * type 相等或者 key 相等
+			 * 如果是同一个类型，那么说明变化的只是 props 或者 children，只需要调用 patch 函数去 patchProps 和 patchChildren
+			 * 如果不是同一个类型，对左侧的查找来说，i 指针就会指向范围缩小后的起点
+			 */
+			if (isVNodeTypeTheSame(oldChild, newChild)) {
+				patch(oldChild, newChild, container, parentComponent);
+			} else {
+				break;
+			}
+
+			i++;
+		}
+
+		// 右侧
+		while (i <= e1 && i <= e2) {
+			const oldChild = oldChildren[e1];
+			const newChild = newChildren[e2];
+
+			if (isVNodeTypeTheSame(oldChild, newChild)) {
+				patch(oldChild, newChild, container, parentComponent);
+			} else {
+				break;
+			}
+
+			e1--;
+			e2--;
+		}
+
+		console.log("-----------双端对比指针结果----------");
+		console.log(
+			"开始的值：",
+			oldChildren,
+
+			oldChildren.map(({ children }) => children).join(",")
+		);
+		console.log(
+			"结束的值：",
+			newChildren,
+			newChildren.map(({ children }) => children).join(",")
+		);
+		console.log("i", i);
+		console.log("e1", e1);
+		console.log("e2", e2);
+		console.log("----------------------------------");
+
+		// 3. 左侧对比情况下：新的比老的多，需要创建新的节点
+		if (i > e1) {
+			if (i <= e2) {
+				const nextIndex = e2 + 1;
+				const anchor =
+					nextIndex < newChildren.length ? newChildren[nextIndex].el : null;
+
+				while (i <= e2) {
+					// happy path
+					patch(null, newChildren[i], container, parentComponent, anchor);
+					i++;
+				}
+			}
+		}
+
+		// 4. 左侧对比情况下：老的比新的多，删除老的
+		if (i > e2) {
+			while (i <= e1) {
+				hostRemove(oldChildren[i].el);
+				i++;
+			}
+		}
+
+		/**
+		 * 总结：上述代码是针对【有序部分】的几种处理，分别是
+		 * 1，创建：
+		 * 	从左到右，新的比老的长，比如 AB -> ABC
+		 * 	从右到左，新的比老的长，比如 BC -> ABC
+		 * 2. 删除：
+		 * 	从左到右，老的比新的长，比如 ABC -> AB
+		 *  从右到左，老的比新的长，比如 ABC -> BC
+		 */
+
+		/**
+		 * 那么还有一些情况是乱序的，分别是下面三种
+		 * 1. 创建新的（在老的里面不存在，在新的里面存在）
+		 * 2. 删除老的（在老的里面存在， 在新的里面不存在）
+		 * 3. 移动（节点同时存在于新的和老的里面，但是位置变了）
+		 */
 	}
 
 	function unmountChildren(children) {
