@@ -2,6 +2,7 @@ import { effect } from "../reactivity/effect";
 import { ShapeFlags } from "../shared/ShapeFlags";
 import { isEmptyObject, isNullOrUndefined, isUndefined } from "../shared/is";
 import { createComponentInstance, setupComponent } from "./component";
+import { shouldUpdateComponent } from "./componentUpdateUtils";
 import { createAppAPI } from "./createApp";
 import { Fragment, Text, createTextVNode } from "./vnode";
 
@@ -64,7 +65,19 @@ export function createRenderer(options) {
 	}
 
 	function processComponent(oldVnode, newVnode, container, parentComponent) {
-		mountComponent(newVnode, container, parentComponent);
+		if (!oldVnode) {
+			mountComponent(newVnode, container, parentComponent);
+		} else {
+			updateComponent(oldVnode, newVnode);
+		}
+	}
+
+	function updateComponent(oldVnode, newVnode) {
+		const instance = (newVnode.component = oldVnode.component);
+		instance.next = newVnode;
+		if (shouldUpdateComponent(oldVnode, newVnode)) {
+			instance.update();
+		}
 	}
 
 	/**
@@ -74,7 +87,10 @@ export function createRenderer(options) {
 	 * 3.
 	 */
 	function mountComponent(vnode, container, parentComponent) {
-		const instance = createComponentInstance(vnode, parentComponent);
+		const instance = (vnode.component = createComponentInstance(
+			vnode,
+			parentComponent
+		));
 		setupComponent(instance);
 		setupRenderEffect(instance, container);
 	}
@@ -119,7 +135,7 @@ export function createRenderer(options) {
 	 */
 	function setupRenderEffect(instance, container) {
 		// 取名 subTree，因为通过 h 函数返回的是一棵 vnode 树
-		effect(() => {
+		instance.update = effect(() => {
 			if (!instance.isMounted) {
 				const { proxy } = instance;
 				const subTree = (instance.subTree = instance.render.call(proxy));
@@ -128,12 +144,23 @@ export function createRenderer(options) {
 				instance.isMounted = true;
 			} else {
 				const { proxy } = instance;
+				const { next, vnode } = instance;
+				if (next) {
+					next.el = vnode.el;
+					updateComponentPreRender(instance, next);
+				}
 				const subTree = instance.render.call(proxy);
 				const prevSubTree = instance.subTree;
 				instance.subTree = subTree;
 				patch(prevSubTree, subTree, container, instance);
 			}
 		});
+	}
+
+	function updateComponentPreRender(instance, nextVNode) {
+		instance.vnode = nextVNode;
+		instance.next = null;
+		instance.props = nextVNode.props;
 	}
 
 	/**
