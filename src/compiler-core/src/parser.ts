@@ -26,8 +26,23 @@ function parserChildren(context) {
 		}
 	}
 
+	if (!node) {
+		node = parseText(context);
+	}
+
 	nodes.push(node);
 	return nodes;
+}
+
+function parseText(context) {
+	const content = context.source;
+
+	advanceBy(context, content.length);
+
+	return {
+		type: NodeTypes.TEXT,
+		content
+	};
 }
 
 function parseElemenet(context) {
@@ -66,7 +81,7 @@ function parserInterpolation(context) {
 	);
 	advanceBy(context, openDelimiter.length);
 	const rawContentLength = closeIndex - openDelimiter.length;
-	const rawContent = context.source.slice(0, rawContentLength);
+	const rawContent = parseTextData(context, rawContentLength);
 	// edge case
 	const content = rawContent.trim();
 	advanceBy(context, rawContentLength + closeDelimiter.length);
@@ -78,6 +93,11 @@ function parserInterpolation(context) {
 			content
 		}
 	};
+}
+
+function parseTextData(context, length) {
+	const content = context.source.slice(0, length);
+	return content;
 }
 
 function createRoot(children) {
