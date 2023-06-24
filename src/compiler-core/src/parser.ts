@@ -35,9 +35,7 @@ function parserChildren(context) {
 }
 
 function parseText(context) {
-	const content = context.source;
-
-	advanceBy(context, content.length);
+	const content = parseTextData(context, context.source.length);
 
 	return {
 		type: NodeTypes.TEXT,
@@ -84,7 +82,7 @@ function parserInterpolation(context) {
 	const rawContent = parseTextData(context, rawContentLength);
 	// edge case
 	const content = rawContent.trim();
-	advanceBy(context, rawContentLength + closeDelimiter.length);
+	advanceBy(context, closeDelimiter.length);
 
 	return {
 		type: NodeTypes.INTERPOLATION,
@@ -97,6 +95,7 @@ function parserInterpolation(context) {
 
 function parseTextData(context, length) {
 	const content = context.source.slice(0, length);
+	advanceBy(context, length);
 	return content;
 }
 
