@@ -7,35 +7,57 @@ const enum TagType {
 
 export function baseParser(content: string) {
 	const context = createParserContext(content);
-	return createRoot(parserChildren(context));
+	return createRoot(parseChildren(context, ""));
 }
 
-function parserChildren(context) {
+function parseChildren(context, parentTag) {
 	const nodes: any[] = [];
 
-	// {{}}
-	let node;
-	const source = context.source;
-	if (source.startsWith("{{")) {
-		node = parserInterpolation(context);
-	}
-
-	if (source[0] === "<") {
-		if (/[a-z]/.test(source[1])) {
-			node = parseElemenet(context);
+	while (!isEnd(context, parentTag)) {
+		// {{}}
+		let node;
+		const source = context.source;
+		if (source.startsWith("{{")) {
+			node = parserInterpolation(context);
 		}
-	}
 
-	if (!node) {
-		node = parseText(context);
-	}
+		if (source[0] === "<") {
+			if (/[a-z]/.test(source[1])) {
+				node = parseElemenet(context);
+			}
+		}
 
-	nodes.push(node);
+		if (!node) {
+			node = parseText(context);
+		}
+
+		nodes.push(node);
+	}
 	return nodes;
 }
 
+function isEnd(context, parentTag) {
+	if (parentTag && context.source.startsWith(`</${parentTag}>`)) {
+		return true;
+	}
+
+	if (!context.source) return true;
+
+	throw `缺少结束标签}`;
+}
+
 function parseText(context) {
-	const content = parseTextData(context, context.source.length);
+	let endIndex = context.source.length;
+	let endTokens = ["<", "{{"];
+
+	for (let i = 0; i < endTokens.length; i++) {
+		const index = context.source.indexOf(endTokens[i]);
+		if (index !== -1 && endIndex > index) {
+			endIndex = index;
+		}
+	}
+
+	const content = parseTextData(context, endIndex);
 
 	return {
 		type: NodeTypes.TEXT,
@@ -44,7 +66,8 @@ function parseText(context) {
 }
 
 function parseElemenet(context) {
-	const element = parseTag(context, TagType.Start);
+	const element: any = parseTag(context, TagType.Start);
+	element.children = parseChildren(context, element.tag);
 	parseTag(context, TagType.End);
 	return element;
 }
