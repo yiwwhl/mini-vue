@@ -1,6 +1,41 @@
+import { CREATE_ELEMENT_VNODE } from "./runtimeHelpers";
+
 export const enum NodeTypes {
-	INTERPOLATION,
-	SIMPLE_EXPRESSION,
-	ELEMENT,
-	TEXT
+  TEXT,
+  ROOT,
+  INTERPOLATION,
+  SIMPLE_EXPRESSION,
+  ELEMENT,
+  COMPOUND_EXPRESSION
+}
+
+export const enum ElementTypes {
+  ELEMENT,
+}
+
+export function createSimpleExpression(content) {
+  return {
+    type: NodeTypes.SIMPLE_EXPRESSION,
+    content,
+  };
+}
+
+export function createInterpolation(content) {
+  return {
+    type: NodeTypes.INTERPOLATION,
+    content: content,
+  };
+}
+
+export function createVNodeCall(context, tag, props?, children?) {
+  if (context) {
+    context.helper(CREATE_ELEMENT_VNODE);
+  }
+
+  return {
+    type: NodeTypes.ELEMENT,
+    tag,
+    props,
+    children,
+  };
 }
