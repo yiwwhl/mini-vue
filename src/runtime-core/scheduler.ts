@@ -1,28 +1,52 @@
 const queue: any[] = [];
+const activePreFlushCbs: any = [];
+
+const p = Promise.resolve();
 let isFlushPending = false;
 
-export function queueJobs(job) {
+export function nextTick(fn?) {
+	return fn ? p.then(fn) : p;
+}
+
+export function queueJob(job) {
 	if (!queue.includes(job)) {
 		queue.push(job);
+		// 执行所有的 job
+		queueFlush();
 	}
-	queueFlush();
 }
 
 function queueFlush() {
 	if (isFlushPending) return;
 	isFlushPending = true;
-
-	nextTick(() => {
-		isFlushPending = false;
-		let job;
-		while ((job = queue.shift())) {
-			job && job();
-		}
-	});
+	nextTick(flushJobs);
 }
 
-const microtask = Promise.resolve();
+export function queuePreFlushCb(cb) {
+	queueCb(cb, activePreFlushCbs);
+}
 
-export function nextTick(fn) {
-	return fn ? microtask.then(fn) : microtask;
+function queueCb(cb, activeQueue) {
+	activeQueue.push(cb);
+
+	queueFlush();
+}
+
+function flushJobs() {
+	isFlushPending = false;
+
+	flushPreFlushCbs();
+
+	let job;
+	while ((job = queue.shift())) {
+		if (job) {
+			job();
+		}
+	}
+}
+
+function flushPreFlushCbs() {
+	for (let i = 0; i < activePreFlushCbs.length; i++) {
+		activePreFlushCbs[i]();
+	}
 }
